@@ -8,7 +8,7 @@ import json
 
 # Global variables to hold the response and event
 response_event = asyncio.Event()
-responseFromGemini = None
+responseFromAgent = None
 
 StarterAgent = Agent(
     name="StarterAgent",
@@ -21,6 +21,8 @@ StarterAgent = Agent(
 QUESTION = "give me a route from UTSC to union station"
 
 AI_MODEL_AGENT_ADDRESS = "agent1qd8ymq4najh5wycvhvhcw3l5lmkgkvkrqevrs6wpp5ll0khfdq6v2cq6859"
+ROUTE_VERIFYER_AGENT_ADDRESS = "agent1qtg6p77ujvm02mrd9lrp4naxppm0aq24vhspg96z3yfwgv5nhe5cvmy6grd"
+
 
 
 class Request(Model):
@@ -51,10 +53,11 @@ class JSONResponse(Model):
 
 @StarterAgent.on_message(model=Request)
 async def handle_data(ctx: Context, sender: str, request: Request):
-    global responseFromGemini
+    global responseFromAgent
     """Log response from AI Model Agent """
-    ctx.logger.info(f"Got response from AI model agent: {request}")
-    responseFromGemini = json.loads(request.text)
+    ctx.logger.info(f"Got response from agent: {request}")
+    # responseFromAgent = json.loads(request.text)
+    responseFromAgent = request.text
 	# Set the event to indicate the response has been received
     response_event.set()
 
@@ -79,10 +82,16 @@ async def handle_post(ctx: Context, req: Request) -> JSONResponse:
     await ctx.send(AI_MODEL_AGENT_ADDRESS, Request(text=userInput))
     
     await response_event.wait()
-    ctx.logger.info(f"Received return to post: {responseFromGemini}")
+    ctx.logger.info(f"Returned from gemini: {responseFromAgent}")
 
-    return JSONResponse(response=responseFromGemini)
-    
+    # verify the route using verifyer agent
+    response_event.clear()
+    await ctx.send(ROUTE_VERIFYER_AGENT_ADDRESS, Request(text=responseFromAgent))
+
+    await response_event.wait()
+    ctx.logger.info(f"Returned from verifyer: {responseFromAgent}")
+
+    return JSONResponse(response=json.loads(responseFromAgent))
 
 	    
 @StarterAgent.on_interval(15)
