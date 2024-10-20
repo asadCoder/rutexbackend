@@ -97,7 +97,7 @@ async def handle_post(ctx: Context, req: Request) -> JSONResponse:
     await response_event.wait()
     ctx.logger.info(f"Returned from health agent: {responseFromAgent}")
 
-    route["StepsNeeded"] = responseFromAgent
+    route["route1Info"]["stepsNeeded"] = responseFromAgent
 
     return JSONResponse(response=route)
 
