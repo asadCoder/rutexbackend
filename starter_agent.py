@@ -6,24 +6,24 @@ import asyncio
 import json
 
 
-# Global variables to hold the response and event
-response_event = asyncio.Event()
-responseFromAgent = None
-
 StarterAgent = Agent(
     name="StarterAgent",
     port=8000,
     seed="SenderAgent secret phrase",
     endpoint=["http://127.0.0.1:8000/submit"],
+    mailbox="01feeae0-5cad-4706-a067-4070825e206d"
 )
 
-# Write your question here
-QUESTION = "give me a route from UTSC to union station"
 
 AI_MODEL_AGENT_ADDRESS = "agent1qd8ymq4najh5wycvhvhcw3l5lmkgkvkrqevrs6wpp5ll0khfdq6v2cq6859"
 ROUTE_VERIFYER_AGENT_ADDRESS = "agent1qtg6p77ujvm02mrd9lrp4naxppm0aq24vhspg96z3yfwgv5nhe5cvmy6grd"
+HEALTH_AGENT_ADDRESS = "agent1q0enqfa6fueh6fz6xt56hm5s5gjrt4exyxvda97dnxxun0wuv4ks52xezvv"
 
+# Global variables to hold the response and event
+response_event = asyncio.Event()
+responseFromAgent = None
 
+route = None
 
 class Request(Model):
     text: str
@@ -44,13 +44,6 @@ class Data(Model):
 class JSONResponse(Model):
     response: dict  
 
-
-# @StarterAgent.on_event("startup")
-# async def ask_question(ctx: Context):
-#     """Send question to AI Model Agent"""
-#     ctx.logger.info(f"Asking question to AI model agent: {QUESTION}")
-#     await ctx.send(AI_MODEL_AGENT_ADDRESS, Request(text=QUESTION))
-
 @StarterAgent.on_message(model=Request)
 async def handle_data(ctx: Context, sender: str, request: Request):
     global responseFromAgent
@@ -69,7 +62,12 @@ async def handle_error(ctx: Context, sender: str, error: Error):
 
 @StarterAgent.on_rest_post("/post/route", Request, JSONResponse)
 async def handle_post(ctx: Context, req: Request) -> JSONResponse:
-    global response_from_ai_model, response_event
+    global response_from_ai_model, response_event, route
+
+    # Handle CORS for OPTIONS request
+    if req.text is None:  # Assuming OPTIONS requests won't have body
+        ctx.response_headers["Access-Control-Allow-Origin"] = "*"  # Allow the specific origin
+        # return {"status": 204}  # No Content response
     
     # Access request data properly
     userInput = req.text
@@ -89,12 +87,22 @@ async def handle_post(ctx: Context, req: Request) -> JSONResponse:
     await ctx.send(ROUTE_VERIFYER_AGENT_ADDRESS, Request(text=responseFromAgent))
 
     await response_event.wait()
-    ctx.logger.info(f"Returned from verifyer: {responseFromAgent}")
+    ctx.logger.info(f"Returned from verifier: {responseFromAgent}")
+    route = json.loads(responseFromAgent)
 
-    return JSONResponse(response=json.loads(responseFromAgent))
+    # get health stats...currently we are only getting steps goal for the user
+    response_event.clear()
+    await ctx.send(HEALTH_AGENT_ADDRESS, Request(text="getStepsNeeded"))
+
+    await response_event.wait()
+    ctx.logger.info(f"Returned from health agent: {responseFromAgent}")
+
+    route["StepsNeeded"] = responseFromAgent
+
+    return JSONResponse(response=route)
 
 	    
-@StarterAgent.on_interval(15)
+@StarterAgent.on_interval(60)
 async def interval_task(ctx: Context):
     print("I, starter, am alive", StarterAgent.address)
 

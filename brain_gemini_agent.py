@@ -45,15 +45,6 @@ class Request(Model):
 class Error(Model):
     text: str
 
-
-class Data(Model):
-    value: float
-    unit: str
-    timestamp: str
-    confidence: float
-    source: str
-    notes: str
-
 class JSONResponse(Model):
     response: dict  
 
@@ -74,7 +65,7 @@ async def handle_request(ctx: Context, sender: str, request: Request):
     response = get_base_route(ctx, request.text)
     await ctx.send(sender, response)
     
-@BrainGemini.on_interval(15)
+@BrainGemini.on_interval(60)
 async def interval_task(ctx: Context):
     try:
         print("I, brain, am alive", BrainGemini.address)

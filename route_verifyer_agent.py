@@ -1,8 +1,14 @@
+### The aim of this Route Verifier Agent is to verify all aspects
+### of the route including distance, cost, duration etc using various apis acting as agents.
+### Currently, we are only verifying the duration and distance using google directions api.
+
+
 from uagents import Agent, Bureau, Context, Model
 import requests
 import json
 import googlemaps
 from datetime import datetime
+
 
 
 gmaps = googlemaps.Client(key='AIzaSyDmFTRzH4UebgjP7ifLPTpo8WAmC0qXux8')
@@ -62,7 +68,7 @@ async def handle_request(ctx: Context, sender: str, request: Request):
 
     
     
-@RouteVeriferAgent.on_interval(15)
+@RouteVeriferAgent.on_interval(60)
 async def interval_task(ctx: Context):
     try:
         print("I, RouteVeriferAgent, am alive", RouteVeriferAgent.address)
